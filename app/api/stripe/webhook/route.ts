@@ -86,6 +86,7 @@ export async function POST(request: NextRequest) {
         stripePaymentIntentId: paymentIntentId,
       }));
 
+      // Call Convex public action to create boletos
       await convex.action(api.payments.createBoletosFromWebhookPublic, {
         webhookSecret: process.env.STRIPE_WEBHOOK_SECRET!,
         rifaId: rifaId as any,

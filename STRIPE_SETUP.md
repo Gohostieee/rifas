@@ -77,10 +77,44 @@ NEXT_PUBLIC_CONVEX_URL=your_convex_url
 
 ## Production Deployment
 
-1. Update `NEXT_PUBLIC_BASE_URL` to your production URL
-2. Use production Stripe keys (not test keys)
-3. Set up webhook endpoint in Stripe Dashboard pointing to your production URL
-4. Ensure `STRIPE_WEBHOOK_SECRET` is set in your production environment
+1. **Deploy Convex Functions First**: 
+   ```bash
+   npx convex deploy
+   ```
+   This must be run before or during your build process to ensure all Convex functions are available.
+
+2. **For Vercel Deployment**:
+   - Add a build command: `npm run build:all` (which deploys Convex then builds Next.js)
+   - OR add `npx convex deploy` as a separate build step in Vercel settings
+   - OR use Vercel's "Build Command" override: `npx convex deploy && next build`
+
+3. **Set Environment Variables**:
+   - Update `NEXT_PUBLIC_BASE_URL` to your production URL
+   - Use production Stripe keys (not test keys)
+   - Ensure `STRIPE_WEBHOOK_SECRET` is set in:
+     - Next.js environment variables (for webhook signature verification)
+     - Convex environment variables: `npx convex env set STRIPE_WEBHOOK_SECRET <value>`
+
+4. **Set up Webhook**: 
+   - Go to Stripe Dashboard > Webhooks
+   - Add endpoint: `https://your-domain.com/api/stripe/webhook`
+   - Select event: `checkout.session.completed`
+   - Copy the webhook signing secret
+
+## Troubleshooting
+
+### Error: "Could not find public function"
+If you see this error in production, ensure:
+1. **Convex functions are deployed**: Run `npx convex deploy` before building
+2. **Build process includes Convex deployment**: Use `npm run build:all` or add `npx convex deploy` to your build command
+3. **Convex deployment completed successfully**: Check that all functions deployed without errors
+4. **Environment variables are set**: Ensure `STRIPE_WEBHOOK_SECRET` is set in Convex: `npx convex env set STRIPE_WEBHOOK_SECRET <value>`
+
+### Webhook Not Working
+1. Check Stripe webhook logs in Stripe Dashboard
+2. Verify webhook secret matches in both environments
+3. Ensure `NEXT_PUBLIC_CONVEX_URL` is set correctly
+4. Check server logs for detailed error messages
 
 ## Important Notes
 

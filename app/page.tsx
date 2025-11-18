@@ -97,17 +97,11 @@ export default function Home() {
         throw new Error(data.error || "Failed to create checkout session");
       }
 
-      // Redirect to Stripe Checkout
-      const { loadStripe } = await import("@stripe/stripe-js");
-      const stripe = await loadStripe(
-        process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
-      );
-      
-      if (stripe && data.sessionId) {
-        const result = await (stripe as any).redirectToCheckout({ sessionId: data.sessionId });
-        if (result?.error) {
-          throw new Error(result.error.message || "Failed to redirect to checkout");
-        }
+      // Redirect to Stripe Checkout using the session URL
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error("No checkout URL received from Stripe");
       }
     } catch (error: any) {
       console.error("Error:", error);

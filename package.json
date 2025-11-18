@@ -5,6 +5,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "deploy": "npx convex deploy",
+    "build:all": "npx convex deploy && next build",
     "start": "next start",
     "lint": "eslint"
   },
