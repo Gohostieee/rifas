@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { ConvexHttpClient } from "convex/browser";
-import { internal } from "@/convex/_generated/api";
+import { api } from "@/convex/_generated/api";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2024-12-18.acacia",
+  apiVersion: "2025-11-17.clover",
 });
 
 const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
@@ -86,7 +86,8 @@ export async function POST(request: NextRequest) {
         stripePaymentIntentId: paymentIntentId,
       }));
 
-      await convex.action(internal.payments.createBoletosFromWebhook, {
+      await convex.action(api.payments.createBoletosFromWebhookPublic, {
+        webhookSecret: process.env.STRIPE_WEBHOOK_SECRET!,
         rifaId: rifaId as any,
         boletos,
       });
