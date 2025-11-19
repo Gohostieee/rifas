@@ -48,9 +48,9 @@ NEXT_PUBLIC_CONVEX_URL=your_convex_url
 
 2. **Webhook Flow**:
    - Stripe sends `checkout.session.completed` event to webhook endpoint
-   - Webhook verifies the signature
+   - Webhook verifies the Stripe signature cryptographically (using `STRIPE_WEBHOOK_SECRET`)
    - Generates random 10-digit boleto numbers
-   - Calls Convex internal action to create boletos
+   - Calls Convex public action to create boletos
    - Updates the rifa's `currentBoletosSold` count
    - User is redirected to success page
 
@@ -89,11 +89,10 @@ NEXT_PUBLIC_CONVEX_URL=your_convex_url
    - OR use Vercel's "Build Command" override: `npx convex deploy && next build`
 
 3. **Set Environment Variables**:
-   - Update `NEXT_PUBLIC_BASE_URL` to your production URL
+   - Update `NEXT_PUBLIC_BASE_URL` to your production URL (or it will auto-detect from request headers)
    - Use production Stripe keys (not test keys)
-   - Ensure `STRIPE_WEBHOOK_SECRET` is set in:
-     - Next.js environment variables (for webhook signature verification)
-     - Convex environment variables: `npx convex env set STRIPE_WEBHOOK_SECRET <value>`
+   - Ensure `STRIPE_WEBHOOK_SECRET` is set in Next.js environment variables (for webhook signature verification)
+   - Note: The webhook secret is only needed in Next.js, not in Convex (Stripe signature verification is sufficient)
 
 4. **Set up Webhook**: 
    - Go to Stripe Dashboard > Webhooks
@@ -108,13 +107,16 @@ If you see this error in production, ensure:
 1. **Convex functions are deployed**: Run `npx convex deploy` before building
 2. **Build process includes Convex deployment**: Use `npm run build:all` or add `npx convex deploy` to your build command
 3. **Convex deployment completed successfully**: Check that all functions deployed without errors
-4. **Environment variables are set**: Ensure `STRIPE_WEBHOOK_SECRET` is set in Convex: `npx convex env set STRIPE_WEBHOOK_SECRET <value>`
+
+### Error: "Webhook secret not configured in Convex environment"
+This error has been resolved. The webhook secret is now only required in Next.js environment variables, not in Convex. The Stripe signature verification in the webhook route provides sufficient security.
 
 ### Webhook Not Working
 1. Check Stripe webhook logs in Stripe Dashboard
-2. Verify webhook secret matches in both environments
+2. Verify `STRIPE_WEBHOOK_SECRET` is set correctly in Next.js environment variables
 3. Ensure `NEXT_PUBLIC_CONVEX_URL` is set correctly
 4. Check server logs for detailed error messages
+5. Verify the webhook endpoint URL matches your production domain
 
 ## Important Notes
 

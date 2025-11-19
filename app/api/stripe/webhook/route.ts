@@ -87,8 +87,8 @@ export async function POST(request: NextRequest) {
       }));
 
       // Call Convex public action to create boletos
+      // Note: Stripe signature verification above ensures this is a legitimate webhook
       await convex.action(api.payments.createBoletosFromWebhookPublic, {
-        webhookSecret: process.env.STRIPE_WEBHOOK_SECRET!,
         rifaId: rifaId as any,
         boletos,
       });

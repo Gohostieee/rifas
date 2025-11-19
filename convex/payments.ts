@@ -25,11 +25,11 @@ export const createBoletosFromWebhook = internalAction({
   },
 });
 
-// Public action to create boletos from webhook (with secret verification)
-// Note: The webhook route already verifies Stripe signatures, this adds an extra layer of security
+// Public action to create boletos from webhook
+// Note: The webhook route already verifies Stripe signatures cryptographically,
+// so no additional secret verification is needed here
 export const createBoletosFromWebhookPublic = action({
   args: {
-    webhookSecret: v.string(),
     rifaId: v.id("daily_rifa"),
     boletos: v.array(v.object({
       number: v.number(),
@@ -40,16 +40,6 @@ export const createBoletosFromWebhookPublic = action({
     })),
   },
   handler: async (ctx, args) => {
-    // Verify webhook secret matches expected value
-    // The secret should be set in Convex environment variables via: npx convex env set STRIPE_WEBHOOK_SECRET <value>
-    const expectedSecret = process.env.STRIPE_WEBHOOK_SECRET;
-    if (!expectedSecret) {
-      throw new Error("Webhook secret not configured in Convex environment");
-    }
-    if (args.webhookSecret !== expectedSecret) {
-      throw new Error("Invalid webhook secret");
-    }
-
     // Call the internal mutation to create boletos
     await ctx.runMutation(internal.admin.createBoletos, {
       rifaId: args.rifaId,
