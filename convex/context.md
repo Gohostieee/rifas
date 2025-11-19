@@ -1,7 +1,9 @@
 # Convex Backend Context
 
 ## Schema Overview
-- `boletos` - Stores ticket purchases with number, name, email, phone
+- `boletos` - Stores ticket purchases with number, name, email, phone, rifa reference, and optional winner flag
+  - Indexed by `rifa` field for efficient filtering (`by_rifa` index)
+  - `winner` field defaults to `false`/`undefined` for new boletos
 - `daily_rifa` - Stores raffle/prize information with title, subtitle, description, image, and optional selected flag
 
 ## Queries and Mutations
@@ -17,6 +19,11 @@
 ### Admin Queries (`convex/admin.ts`)
 - **`getAllRifas`** - Returns all rifas with image URLs converted
 - **`getBoletos`** - Paginated query for ticket purchases
+  - Supports optional `rifaId` filter to show boletos for a specific rifa
+  - Automatically sorts winners to the top, then by creation time (newest first)
+  - Includes rifa title information in results
+- **`getBoletosByRifa`** - Helper query to get all boletos for a specific rifa (used by actions)
+- **`getRifaById`** - Helper query to get a rifa by ID (used by actions)
 - **`getStorageUrl`** - Converts storage ID to URL
 - **`generateUploadUrl`** - Action to generate upload URL for file storage
 
@@ -24,6 +31,19 @@
 - **`setSelectedRifa`** - Sets a rifa as selected (unselects all others first)
 - **`createRifa`** - Creates a new rifa (defaults to `selected: false`)
 - **`updateRifa`** - Updates an existing rifa
+- **`setBoletoWinner`** - Sets or removes the winner flag on a boleto
+  - Args: `boletoId`, `isWinner` (boolean)
+  - When setting a boleto as winner, it will automatically appear at the top of the list
+
+### Admin Actions (`convex/admin.ts`)
+- **`getRandomBoleto`** - Action to get a random boleto from a specific rifa
+  - Returns a fresh random selection each time (not cached like queries)
+  - Includes rifa title information in the result
+  - Returns `null` if no boletos exist for the rifa
+- **`getAllBoletosWithRifaInfo`** - Action to get all boletos for a rifa with rifa information
+  - Used for animated winner selection feature
+  - Returns array of boletos with rifa title included
+  - Shuffled on client side for random animation order
 
 ## Image Storage
 - Images can be stored as either:

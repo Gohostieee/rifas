@@ -9,7 +9,9 @@ export default defineSchema({
     phone: v.string(),
     rifa: v.id("daily_rifa"),
     stripePaymentIntentId: v.optional(v.string()), // Store Stripe payment intent ID
-  }),
+    winner: v.optional(v.boolean()), // Marks if this ticket is the winner
+  })
+    .index("by_rifa", ["rifa"]),
   daily_rifa: defineTable({
     title: v.string(),
     subtitle: v.string(),

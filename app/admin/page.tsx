@@ -43,7 +43,14 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { Lock, ChevronLeft, ChevronRight, Plus, Pencil } from "lucide-react";
+import { Lock, ChevronLeft, ChevronRight, Plus, Pencil, Trophy, Shuffle, X, Sparkles } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -70,6 +77,11 @@ export default function AdminPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [selectedRifaFilter, setSelectedRifaFilter] = useState<Id<"daily_rifa"> | "all">("all");
+  const [randomBoleto, setRandomBoleto] = useState<{ _id: Id<"boletos">; number: number; name: string; email: string; phone: string; rifaTitle: string } | null>(null);
+  const [isAnimating, setIsAnimating] = useState(false);
+  const [animationBoleto, setAnimationBoleto] = useState<{ _id: Id<"boletos">; number: number; name: string; email: string; phone: string; rifaTitle: string } | null>(null);
+  const [allBoletosForAnimation, setAllBoletosForAnimation] = useState<Array<{ _id: Id<"boletos">; number: number; name: string; email: string; phone: string; rifaTitle: string }>>([]);
 
   // Check if already authenticated (stored in sessionStorage)
   useEffect(() => {
@@ -113,7 +125,126 @@ export default function AdminPage() {
     setIsAuthenticated(false);
     sessionStorage.removeItem("adminAuthenticated");
     setCurrentPage(1);
+    setSelectedRifaFilter("all");
+    setRandomBoleto(null);
   };
+
+  const handleRollRandom = async () => {
+    if (selectedRifaFilter === "all") {
+      alert("Please select a rifa first to roll a random ticket");
+      return;
+    }
+    
+    try {
+      const random = await getRandomBoleto({ rifaId: selectedRifaFilter });
+      if (random) {
+        setRandomBoleto(random);
+      } else {
+        alert("No boletos found for this rifa");
+      }
+    } catch (error) {
+      console.error("Error getting random boleto:", error);
+      alert("Error getting random boleto. Please try again.");
+    }
+  };
+
+  const handleSetWinner = async (boletoId: Id<"boletos">, isWinner: boolean) => {
+    try {
+      await setBoletoWinner({ boletoId, isWinner });
+      if (isWinner) {
+        setRandomBoleto(null); // Clear random boleto when setting winner
+      }
+    } catch (error) {
+      console.error("Error setting winner:", error);
+      alert("Error setting winner. Please try again.");
+    }
+  };
+
+  const handleAnimatedWinnerSelection = async () => {
+    if (selectedRifaFilter === "all") {
+      alert("Please select a rifa first to pick a winner");
+      return;
+    }
+
+    try {
+      // Get all boletos for the rifa
+      const boletos = await getAllBoletosWithRifaInfo({ rifaId: selectedRifaFilter });
+      
+      if (boletos.length === 0) {
+        alert("No boletos found for this rifa");
+        return;
+      }
+
+      // Shuffle array for random order
+      const shuffled = [...boletos].sort(() => Math.random() - 0.5);
+      setAllBoletosForAnimation(shuffled);
+      setIsAnimating(true);
+      setAnimationBoleto(shuffled[0]); // Show first one immediately
+
+      // Pick final winner
+      const winnerIndex = Math.floor(Math.random() * shuffled.length);
+      const winner = shuffled[winnerIndex];
+
+      // Animation: cycle through boletos with increasing delay
+      const startTime = Date.now();
+      const duration = 3500; // 3.5 seconds total
+      let animationFrameId: number;
+      let lastIndex = -1;
+
+      const animate = () => {
+        const elapsed = Date.now() - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        
+        if (progress < 1) {
+          // Easing function: cubic ease-out (slow down as we approach the end)
+          const easedProgress = 1 - Math.pow(1 - progress, 3);
+          
+          // Calculate which boleto to show
+          // Start fast (many cycles), slow down at the end
+          // Total cycles: start with ~20ms per boleto, end with ~200ms per boleto
+          const minCycleTime = 20; // Fastest: 20ms per boleto
+          const maxCycleTime = 200; // Slowest: 200ms per boleto
+          const cycleTime = minCycleTime + (maxCycleTime - minCycleTime) * easedProgress;
+          
+          const totalCycles = elapsed / cycleTime;
+          const index = Math.floor(totalCycles) % shuffled.length;
+          
+          // Only update if index changed to avoid unnecessary re-renders
+          if (index !== lastIndex) {
+            setAnimationBoleto(shuffled[index]);
+            lastIndex = index;
+          }
+          
+          animationFrameId = requestAnimationFrame(animate);
+        } else {
+          // Show final winner with celebration effect
+          setAnimationBoleto(winner);
+          
+          // Small delay before setting as winner and closing dialog
+          setTimeout(async () => {
+            await setBoletoWinner({ boletoId: winner._id, isWinner: true });
+            setIsAnimating(false);
+            setAnimationBoleto(null);
+            setRandomBoleto(null);
+            // Reset to page 1 to see the winner at the top
+            setCurrentPage(1);
+          }, 1500);
+        }
+      };
+
+      animationFrameId = requestAnimationFrame(animate);
+    } catch (error) {
+      console.error("Error in animated winner selection:", error);
+      alert("Error picking winner. Please try again.");
+      setIsAnimating(false);
+      setAnimationBoleto(null);
+    }
+  };
+
+  // Reset to page 1 when filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedRifaFilter]);
 
   // Fetch data only if authenticated
   const rifas = useQuery(
@@ -124,7 +255,11 @@ export default function AdminPage() {
   const boletosData = useQuery(
     api.admin.getBoletos,
     isAuthenticated
-      ? { page: currentPage, pageSize: ITEMS_PER_PAGE }
+      ? { 
+          page: currentPage, 
+          pageSize: ITEMS_PER_PAGE,
+          rifaId: selectedRifaFilter !== "all" ? selectedRifaFilter : undefined
+        }
       : "skip"
   );
 
@@ -132,6 +267,9 @@ export default function AdminPage() {
   const createRifa = useMutation(api.admin.createRifa);
   const updateRifa = useMutation(api.admin.updateRifa);
   const generateUploadUrl = useAction(api.admin.generateUploadUrl);
+  const setBoletoWinner = useMutation(api.admin.setBoletoWinner);
+  const getRandomBoleto = useAction(api.admin.getRandomBoleto);
+  const getAllBoletosWithRifaInfo = useAction(api.admin.getAllBoletosWithRifaInfo);
 
   const form = useForm({
     resolver: zodResolver(rifaFormSchema),
@@ -416,14 +554,165 @@ export default function AdminPage() {
         <TabsContent value="boletos" className="mt-6">
           <Card>
             <CardHeader>
-              <CardTitle>All Boletos</CardTitle>
-              <CardDescription>
-                {boletosData
-                  ? `Showing ${boletosData.boletos.length} of ${boletosData.total} boletos`
-                  : "Loading..."}
-              </CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>All Boletos</CardTitle>
+                  <CardDescription>
+                    {boletosData
+                      ? `Showing ${boletosData.boletos.length} of ${boletosData.total} boletos`
+                      : "Loading..."}
+                  </CardDescription>
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <label htmlFor="rifa-filter" className="text-sm font-medium">
+                      Filter by Rifa:
+                    </label>
+                    <Select
+                      value={selectedRifaFilter === "all" ? "all" : selectedRifaFilter}
+                      onValueChange={(value) => {
+                        setSelectedRifaFilter(value === "all" ? "all" : value as Id<"daily_rifa">);
+                        setRandomBoleto(null);
+                      }}
+                    >
+                      <SelectTrigger id="rifa-filter" className="w-[200px]">
+                        <SelectValue placeholder="All Rifas" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Rifas</SelectItem>
+                        {rifas?.map((rifa) => (
+                          <SelectItem key={rifa._id} value={rifa._id}>
+                            {rifa.title}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {selectedRifaFilter !== "all" && (
+                    <div className="flex gap-2">
+                      <Button
+                        onClick={handleRollRandom}
+                        variant="outline"
+                        className="gap-2"
+                      >
+                        <Shuffle className="h-4 w-4" />
+                        Roll Random Ticket
+                      </Button>
+                      <Button
+                        onClick={handleAnimatedWinnerSelection}
+                        disabled={isAnimating}
+                        className="gap-2 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white font-bold shadow-lg"
+                      >
+                        <Sparkles className="h-4 w-4" />
+                        {isAnimating ? "Picking Winner..." : "Pick Winner (Animated)"}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
+              {randomBoleto && (
+                <div className="mb-6 rounded-lg border-2 border-primary bg-primary/5 p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="flex items-center gap-2 mb-2">
+                        <Trophy className="h-5 w-5 text-primary" />
+                        <h3 className="text-lg font-semibold">Random Ticket Selected</h3>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <span className="font-medium">Number:</span> {randomBoleto.number}
+                        </div>
+                        <div>
+                          <span className="font-medium">Name:</span> {randomBoleto.name}
+                        </div>
+                        <div>
+                          <span className="font-medium">Email:</span> {randomBoleto.email}
+                        </div>
+                        <div>
+                          <span className="font-medium">Phone:</span> {randomBoleto.phone}
+                        </div>
+                        <div>
+                          <span className="font-medium">Rifa:</span> {randomBoleto.rifaTitle}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <Button
+                        onClick={() => handleSetWinner(randomBoleto._id, true)}
+                        className="gap-2"
+                      >
+                        <Trophy className="h-4 w-4" />
+                        Set as Winner
+                      </Button>
+                      <Button
+                        onClick={() => setRandomBoleto(null)}
+                        variant="outline"
+                        size="sm"
+                        className="gap-2"
+                      >
+                        <X className="h-4 w-4" />
+                        Clear
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Animated Winner Selection Dialog */}
+              <Dialog open={isAnimating} onOpenChange={() => {}}>
+                <DialogContent className="sm:max-w-[600px]">
+                  <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2 text-2xl">
+                      <Sparkles className="h-6 w-6 text-yellow-500 animate-pulse" />
+                      Picking the Winner...
+                    </DialogTitle>
+                    <DialogDescription>
+                      Cycling through all tickets to find the lucky winner!
+                    </DialogDescription>
+                  </DialogHeader>
+                  {animationBoleto && (
+                    <div className="py-8">
+                      <div className="relative rounded-lg border-4 border-yellow-400 bg-gradient-to-br from-yellow-50 to-orange-50 p-8 shadow-2xl transition-all duration-75">
+                        <div className="absolute top-4 right-4">
+                          <Sparkles className="h-8 w-8 text-yellow-500 animate-spin" />
+                        </div>
+                        <div className="absolute top-4 left-4">
+                          <Trophy className="h-8 w-8 text-yellow-500 animate-pulse" />
+                        </div>
+                        <div className="text-center space-y-4">
+                          <div className="text-6xl font-black text-yellow-600 mb-4 transition-all duration-75">
+                            {animationBoleto.number}
+                          </div>
+                          <div className="space-y-2">
+                            <div className="text-xl font-semibold text-gray-800">
+                              {animationBoleto.name}
+                            </div>
+                            <div className="text-sm text-gray-600">
+                              {animationBoleto.email}
+                            </div>
+                            <div className="text-sm text-gray-600">
+                              {animationBoleto.phone}
+                            </div>
+                            <div className="pt-2">
+                              <Badge className="bg-yellow-500 text-white text-sm px-3 py-1">
+                                {animationBoleto.rifaTitle}
+                              </Badge>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  {!animationBoleto && (
+                    <div className="py-8 text-center">
+                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-500 mx-auto"></div>
+                      <p className="mt-4 text-muted-foreground">Preparing...</p>
+                    </div>
+                  )}
+                </DialogContent>
+              </Dialog>
               {boletosData === undefined ? (
                 <div className="text-center py-8 text-muted-foreground">
                   Loading boletos...
@@ -437,21 +726,58 @@ export default function AdminPage() {
                   <Table>
                     <TableHeader>
                       <TableRow>
+                        <TableHead>Winner</TableHead>
                         <TableHead>Number</TableHead>
+                        <TableHead>Rifa</TableHead>
                         <TableHead>Name</TableHead>
                         <TableHead>Email</TableHead>
                         <TableHead>Phone</TableHead>
+                        <TableHead>Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {boletosData.boletos.map((boleto) => (
-                        <TableRow key={boleto._id}>
+                        <TableRow 
+                          key={boleto._id}
+                          className={boleto.winner ? "bg-yellow-50 dark:bg-yellow-950" : ""}
+                        >
+                          <TableCell>
+                            {boleto.winner ? (
+                              <Badge className="bg-yellow-500 text-white">
+                                <Trophy className="h-3 w-3 mr-1" />
+                                Winner
+                              </Badge>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
+                          </TableCell>
                           <TableCell className="font-medium">
                             {boleto.number}
                           </TableCell>
+                          <TableCell>{boleto.rifaTitle}</TableCell>
                           <TableCell>{boleto.name}</TableCell>
                           <TableCell>{boleto.email}</TableCell>
                           <TableCell>{boleto.phone}</TableCell>
+                          <TableCell>
+                            {boleto.winner ? (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleSetWinner(boleto._id, false)}
+                              >
+                                Remove Winner
+                              </Button>
+                            ) : (
+                              <Button
+                                size="sm"
+                                onClick={() => handleSetWinner(boleto._id, true)}
+                                className="gap-2"
+                              >
+                                <Trophy className="h-3 w-3" />
+                                Set Winner
+                              </Button>
+                            )}
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>

@@ -56,25 +56,51 @@ export const getBoletos = query({
   args: {
     page: v.number(),
     pageSize: v.number(),
+    rifaId: v.optional(v.id("daily_rifa")), // Optional filter by rifa
   },
   handler: async (ctx, args) => {
-    const { page, pageSize } = args;
+    const { page, pageSize, rifaId } = args;
     const skip = (page - 1) * pageSize;
 
-    // Get total count
-    const allBoletos = await ctx.db.query("boletos").collect();
-    const total = allBoletos.length;
+    // Build query with optional rifa filter
+    let allBoletos;
+    if (rifaId) {
+      allBoletos = await ctx.db
+        .query("boletos")
+        .withIndex("by_rifa", (q) => q.eq("rifa", rifaId))
+        .collect();
+    } else {
+      allBoletos = await ctx.db.query("boletos").collect();
+    }
+    
+    // Sort: winners first, then by creation time (desc)
+    const sortedBoletos = allBoletos.sort((a, b) => {
+      // Winners come first
+      const aWinner = a.winner ?? false;
+      const bWinner = b.winner ?? false;
+      if (aWinner !== bWinner) {
+        return aWinner ? -1 : 1;
+      }
+      // Then by creation time (newest first)
+      return b._creationTime - a._creationTime;
+    });
 
-    // Get paginated results
-    const boletos = await ctx.db
-      .query("boletos")
-      .order("desc")
-      .collect();
+    const total = sortedBoletos.length;
+    const paginatedBoletos = sortedBoletos.slice(skip, skip + pageSize);
 
-    const paginatedBoletos = boletos.slice(skip, skip + pageSize);
+    // Get rifa information for each boleto
+    const boletosWithRifa = await Promise.all(
+      paginatedBoletos.map(async (boleto) => {
+        const rifa = await ctx.db.get(boleto.rifa);
+        return {
+          ...boleto,
+          rifaTitle: rifa?.title ?? "Unknown",
+        };
+      })
+    );
 
     return {
-      boletos: paginatedBoletos,
+      boletos: boletosWithRifa,
       total,
       page,
       pageSize,
@@ -150,6 +176,94 @@ export const updateRifa = mutation({
       targetGoal: args.targetGoal,
     });
     return { success: true };
+  },
+});
+
+// Mutation to set a boleto as winner
+export const setBoletoWinner = mutation({
+  args: {
+    boletoId: v.id("boletos"),
+    isWinner: v.boolean(),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.boletoId, {
+      winner: args.isWinner,
+    });
+    return { success: true };
+  },
+});
+
+// Action to get a random boleto from a specific rifa (action instead of query for fresh random each time)
+export const getRandomBoleto = action({
+  args: {
+    rifaId: v.id("daily_rifa"),
+  },
+  handler: async (ctx, args) => {
+    const boletos = await ctx.runQuery(api.admin.getBoletosByRifa, {
+      rifaId: args.rifaId,
+    });
+    
+    if (boletos.length === 0) {
+      return null;
+    }
+    
+    // Get random boleto
+    const randomIndex = Math.floor(Math.random() * boletos.length);
+    const randomBoleto = boletos[randomIndex];
+    
+    // Get rifa information
+    const rifa = await ctx.runQuery(api.admin.getRifaById, {
+      rifaId: args.rifaId,
+    });
+    
+    return {
+      ...randomBoleto,
+      rifaTitle: rifa?.title ?? "Unknown",
+    };
+  },
+});
+
+// Helper query to get all boletos for a rifa (used by action)
+export const getBoletosByRifa = query({
+  args: {
+    rifaId: v.id("daily_rifa"),
+  },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("boletos")
+      .withIndex("by_rifa", (q) => q.eq("rifa", args.rifaId))
+      .collect();
+  },
+});
+
+// Helper query to get rifa by ID (used by action)
+export const getRifaById = query({
+  args: {
+    rifaId: v.id("daily_rifa"),
+  },
+  handler: async (ctx, args) => {
+    return await ctx.db.get(args.rifaId);
+  },
+});
+
+// Action to get all boletos with rifa info for animation
+export const getAllBoletosWithRifaInfo = action({
+  args: {
+    rifaId: v.id("daily_rifa"),
+  },
+  handler: async (ctx, args) => {
+    const boletos = await ctx.runQuery(api.admin.getBoletosByRifa, {
+      rifaId: args.rifaId,
+    });
+    
+    const rifa = await ctx.runQuery(api.admin.getRifaById, {
+      rifaId: args.rifaId,
+    });
+    
+    return boletos.map((boleto) => ({
+      ...boleto,
+      rifaTitle: rifa?.title ?? "Unknown",
+    }));
   },
 });
 
