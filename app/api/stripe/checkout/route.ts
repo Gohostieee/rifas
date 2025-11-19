@@ -17,6 +17,28 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Get base URL from environment variable or derive from request
+    const getBaseUrl = () => {
+      if (process.env.NEXT_PUBLIC_BASE_URL) {
+        return process.env.NEXT_PUBLIC_BASE_URL;
+      }
+      // Fallback to request origin (works in production)
+      const origin = request.headers.get("origin") || request.headers.get("host");
+      if (origin) {
+        // If origin includes protocol, use it; otherwise construct from host
+        if (origin.startsWith("http")) {
+          return origin;
+        }
+        // Determine protocol based on environment
+        const protocol = process.env.NODE_ENV === "production" ? "https" : "http";
+        return `${protocol}://${origin}`;
+      }
+      // Last resort fallback (shouldn't happen in production)
+      return "http://localhost:3000";
+    };
+
+    const baseUrl = getBaseUrl();
+
     // Create Stripe Checkout Session
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
@@ -34,8 +56,8 @@ export async function POST(request: NextRequest) {
         },
       ],
       mode: "payment",
-      success_url: `${process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"}/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"}/#ticket-purchase`,
+      success_url: `${baseUrl}/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${baseUrl}/#ticket-purchase`,
       customer_email: email,
       metadata: {
         rifaId,
