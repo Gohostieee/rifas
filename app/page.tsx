@@ -670,8 +670,15 @@ export default function Home() {
               <div className="grid gap-8 md:grid-cols-4">
                 {/* About */}
                 <div className="md:col-span-2">
-                  <div className="mb-4 flex items-center gap-2">
-                    <Ticket className="h-8 w-8 text-primary" />
+                  <div className="mb-4 flex items-center gap-3">
+                    <div className="relative h-12 w-12 overflow-hidden rounded-lg">
+                      <Image
+                        src="https://psctyqypft2pdkzl.public.blob.vercel-storage.com/523472888_17846005728532388_8016011625930024283_n-1.jpg"
+                        alt="JR Sorteos Logo"
+                        fill
+                        className="object-cover"
+                      />
+                    </div>
                     <span className="text-2xl font-black">JR SORTEOS</span>
                   </div>
                   <p className="mb-4 text-muted-foreground">
