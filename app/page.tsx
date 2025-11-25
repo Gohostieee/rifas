@@ -87,7 +87,7 @@ export default function Home() {
           name: formData.name,
           email: formData.email,
           phone: formData.phone,
-          precio: rifa.precio ?? 0,
+          precio: (rifa.precio ?? 0) * 1.05, // Include 5% service fee
         }),
       });
 
@@ -551,8 +551,16 @@ export default function Home() {
                     <p className="mb-2 text-sm uppercase tracking-wide text-muted-foreground">
                       Total a Pagar
                     </p>
-                    <div className="text-5xl font-black">
-                      RD${(ticketCount * (rifa.precio ?? 0)).toFixed(2)}
+                    <div className="space-y-2">
+                      <div className="text-sm text-muted-foreground">
+                        Subtotal: RD${(ticketCount * (rifa.precio ?? 0)).toFixed(2)}
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        Cargo por servicio (5%): RD${(ticketCount * (rifa.precio ?? 0) * 0.05).toFixed(2)}
+                      </div>
+                      <div className="text-5xl font-black">
+                        RD${(ticketCount * (rifa.precio ?? 0) * 1.05).toFixed(2)}
+                      </div>
                     </div>
                   </div>
 
