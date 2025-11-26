@@ -9,6 +9,7 @@
  */
 
 import type * as admin from "../admin.js";
+import type * as helpers from "../helpers.js";
 import type * as landing from "../landing.js";
 import type * as payments from "../payments.js";
 import type * as verify_daily_rifa from "../verify_daily_rifa.js";
@@ -21,6 +22,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   admin: typeof admin;
+  helpers: typeof helpers;
   landing: typeof landing;
   payments: typeof payments;
   verify_daily_rifa: typeof verify_daily_rifa;

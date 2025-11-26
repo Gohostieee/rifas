@@ -392,7 +392,7 @@ export default function Home() {
           <section className="px-4 py-20 sm:px-6 lg:px-8">
             <div className="mx-auto max-w-7xl">
               <div className="mb-16 text-center">
-                <h2 className="mb-4 text-3xl font-black sm:text-4xl">Por Qué Elegir JR Sorteos</h2>
+                <h2 className="mb-4 text-3xl font-black sm:text-4xl">Por Qué Elegir Sorteos Joropo</h2>
                 <p className="text-lg text-muted-foreground">
                   La plataforma de rifas más confiable y transparente
                 </p>
@@ -662,9 +662,16 @@ export default function Home() {
               <div className="grid gap-8 md:grid-cols-4">
                 {/* About */}
                 <div className="md:col-span-2">
-                  <div className="mb-4 flex items-center gap-2">
-                    <Ticket className="h-8 w-8 text-primary" />
-                    <span className="text-2xl font-black">JR SORTEOS</span>
+                  <div className="mb-4 flex items-center gap-3">
+                    <div className="relative h-12 w-12 overflow-hidden rounded-full border-2 border-primary/20 shadow-sm">
+                      <Image 
+                        src="/logo.png" 
+                        alt="Sorteos Joropo Logo" 
+                        fill 
+                        className="object-cover"
+                      />
+                    </div>
+                    <span className="text-2xl font-black text-primary">Sorteos Joropo</span>
                   </div>
                   <p className="mb-4 text-muted-foreground">
                     La plataforma de rifas más confiable de República Dominicana. Sorteos transparentes, premios reales, ganadores verificados.
@@ -699,7 +706,7 @@ export default function Home() {
                   <ul className="space-y-2 text-muted-foreground">
                     <li className="flex items-center gap-2">
                       <Mail className="h-4 w-4" />
-                      <span>info@jrsorteos.com</span>
+                      <span>info@sorteosjoropo.com</span>
                     </li>
                     <li className="flex items-center gap-2">
                       <Phone className="h-4 w-4" />
@@ -714,7 +721,7 @@ export default function Home() {
               </div>
 
               <div className="mt-8 border-t pt-8 text-center text-sm text-muted-foreground">
-                <p>&copy; {new Date().getFullYear()} JR Sorteos. Todos los derechos reservados.</p>
+                <p>&copy; {new Date().getFullYear()} Sorteos Joropo. Todos los derechos reservados.</p>
                 <div className="mt-2 flex justify-center gap-4">
                   <a href="#" className="hover:text-primary">Términos y Condiciones</a>
                   <span>•</span>

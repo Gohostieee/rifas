@@ -1,6 +1,7 @@
 import { query, mutation, action, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
-import { api } from "./_generated/api";
+import { Doc } from "./_generated/dataModel";
+import { internal } from "./_generated/api";
 
 // Action to generate upload URL
 export const generateUploadUrl = action(async (ctx) => {
@@ -91,6 +92,13 @@ export const getBoletos = query({
     // Get rifa information for each boleto
     const boletosWithRifa = await Promise.all(
       paginatedBoletos.map(async (boleto) => {
+        // Handle missing rifa ID gracefully (for migration/cleanup)
+        if (!boleto.rifa) {
+            return {
+                ...boleto,
+                rifaTitle: "Deleted Rifa / Unknown",
+            };
+        }
         const rifa = await ctx.db.get(boleto.rifa);
         return {
           ...boleto,
@@ -199,11 +207,11 @@ export const getRandomBoleto = action({
     rifaId: v.id("daily_rifa"),
   },
   handler: async (ctx, args) => {
-    const boletos = await ctx.runQuery(api.admin.getBoletosByRifa, {
+    const boletos = (await ctx.runQuery(internal.helpers.getBoletosByRifa, {
       rifaId: args.rifaId,
-    });
+    })) as Doc<"boletos">[];
     
-    if (boletos.length === 0) {
+    if (!boletos || boletos.length === 0) {
       return null;
     }
     
@@ -212,37 +220,14 @@ export const getRandomBoleto = action({
     const randomBoleto = boletos[randomIndex];
     
     // Get rifa information
-    const rifa = await ctx.runQuery(api.admin.getRifaById, {
+    const rifa = (await ctx.runQuery(internal.helpers.getRifaById, {
       rifaId: args.rifaId,
-    });
+    })) as Doc<"daily_rifa"> | null;
     
     return {
       ...randomBoleto,
       rifaTitle: rifa?.title ?? "Unknown",
     };
-  },
-});
-
-// Helper query to get all boletos for a rifa (used by action)
-export const getBoletosByRifa = query({
-  args: {
-    rifaId: v.id("daily_rifa"),
-  },
-  handler: async (ctx, args) => {
-    return await ctx.db
-      .query("boletos")
-      .withIndex("by_rifa", (q) => q.eq("rifa", args.rifaId))
-      .collect();
-  },
-});
-
-// Helper query to get rifa by ID (used by action)
-export const getRifaById = query({
-  args: {
-    rifaId: v.id("daily_rifa"),
-  },
-  handler: async (ctx, args) => {
-    return await ctx.db.get(args.rifaId);
   },
 });
 
@@ -252,14 +237,16 @@ export const getAllBoletosWithRifaInfo = action({
     rifaId: v.id("daily_rifa"),
   },
   handler: async (ctx, args) => {
-    const boletos = await ctx.runQuery(api.admin.getBoletosByRifa, {
+    const boletos = (await ctx.runQuery(internal.helpers.getBoletosByRifa, {
       rifaId: args.rifaId,
-    });
+    })) as Doc<"boletos">[];
     
-    const rifa = await ctx.runQuery(api.admin.getRifaById, {
+    const rifa = (await ctx.runQuery(internal.helpers.getRifaById, {
       rifaId: args.rifaId,
-    });
+    })) as Doc<"daily_rifa"> | null;
     
+    if (!boletos) return [];
+
     return boletos.map((boleto) => ({
       ...boleto,
       rifaTitle: rifa?.title ?? "Unknown",
@@ -272,7 +259,7 @@ export const createBoletos = internalMutation({
   args: {
     rifaId: v.id("daily_rifa"),
     boletos: v.array(v.object({
-      number: v.number(),
+      number: v.optional(v.number()),
       name: v.string(),
       email: v.string(),
       phone: v.string(),
@@ -280,30 +267,110 @@ export const createBoletos = internalMutation({
     })),
   },
   handler: async (ctx, args) => {
-    // Create all boletos
+    // Get the rifa to check current count
+    const rifa = await ctx.db.get(args.rifaId);
+    if (!rifa) {
+      throw new Error("Rifa not found");
+    }
+
+    let currentCount = rifa.currentBoletosSold ?? 0;
     const createdBoletos = [];
+
     for (const boleto of args.boletos) {
+      let number = boleto.number;
+
+      // If number is not provided, generate it
+      if (number === undefined) {
+        // Determine range based on current count
+        let min, max;
+        if (currentCount < 10000) {
+          // 4 digits: 0000 - 9999
+          min = 0;
+          max = 9999;
+        } else if (currentCount < 100000) {
+          // 5 digits: 10000 - 99999
+          min = 10000;
+          max = 99999;
+        } else {
+          // 6 digits: 100000 - 999999
+          min = 100000;
+          max = 999999;
+        }
+
+        // Try to generate a unique number
+        let attempts = 0;
+        const maxAttempts = 20;
+        
+        while (attempts < maxAttempts) {
+          const candidate = Math.floor(Math.random() * (max - min + 1)) + min;
+          
+          // Check if this number already exists for this rifa
+          const existing = await ctx.db
+            .query("boletos")
+            .withIndex("by_rifa_number", (q) => 
+              q.eq("rifa", args.rifaId).eq("number", candidate)
+            )
+            .first();
+            
+          if (!existing) {
+            number = candidate;
+            break;
+          }
+          
+          attempts++;
+        }
+
+        // If we failed to find a unique number in the preferred range, try the next range
+        if (number === undefined) {
+          // Move to next tier immediately if current is full or we're unlucky
+          const nextMin = max + 1;
+          const nextMax = (max * 10) + 9;
+          
+          // Just generate one in the larger range (less likely to collide)
+          number = Math.floor(Math.random() * (nextMax - nextMin + 1)) + nextMin;
+        }
+      }
+
+      // Insert the boleto
       const id = await ctx.db.insert("boletos", {
-        number: boleto.number,
+        number: number!,
         name: boleto.name,
         email: boleto.email,
         phone: boleto.phone,
         rifa: args.rifaId,
         stripePaymentIntentId: boleto.stripePaymentIntentId,
       });
+      
       createdBoletos.push(id);
+      
+      // Increment local count for next iteration
+      currentCount++;
     }
 
-    // Update the rifa's currentBoletosSold count
-    const rifa = await ctx.db.get(args.rifaId);
-    if (rifa) {
-      const currentCount = rifa.currentBoletosSold ?? 0;
-      await ctx.db.patch(args.rifaId, {
-        currentBoletosSold: currentCount + args.boletos.length,
-      });
-    }
+    // Update the rifa's currentBoletosSold count in DB
+    await ctx.db.patch(args.rifaId, {
+      currentBoletosSold: currentCount,
+    });
 
     return { success: true, boletosCreated: createdBoletos.length };
   },
 });
 
+// Mutation to delete invalid boletos (those missing rifa)
+export const cleanupInvalidBoletos = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    // Scan all boletos - this might be slow if there are many, but filtering by index is better if possible
+    // Since rifa is optional now, we can't strictly filter by missing index easily without full scan in some DBs,
+    // but Convex `filter` works.
+    const allBoletos = await ctx.db.query("boletos").collect();
+    
+    const invalidBoletos = allBoletos.filter(b => !b.rifa);
+
+    for (const boleto of invalidBoletos) {
+      await ctx.db.delete(boleto._id);
+    }
+
+    return { deleted: invalidBoletos.length };
+  },
+});

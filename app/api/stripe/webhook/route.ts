@@ -9,22 +9,6 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 
 const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
 
-// Generate random 10-digit boleto numbers
-function generateBoletoNumbers(count: number): number[] {
-  const numbers: number[] = [];
-  const min = 1000000000; // 10 digits minimum
-  const max = 9999999999; // 10 digits maximum
-  
-  while (numbers.length < count) {
-    const num = Math.floor(Math.random() * (max - min + 1)) + min;
-    if (!numbers.includes(num)) {
-      numbers.push(num);
-    }
-  }
-  
-  return numbers;
-}
-
 export async function POST(request: NextRequest) {
   const body = await request.text();
   const signature = request.headers.get("stripe-signature");
@@ -74,12 +58,10 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Generate boleto numbers
-      const boletoNumbers = generateBoletoNumbers(ticketCount);
-
-      // Create boletos in Convex
-      const boletos = boletoNumbers.map((number) => ({
-        number,
+      // Create boletos payload for Convex
+      // We don't generate numbers here anymore, we let Convex handle it
+      // based on the number of tickets sold (to support 4 digits -> 5 digits logic)
+      const boletos = Array.from({ length: ticketCount }).map(() => ({
         name,
         email,
         phone,
@@ -108,4 +90,3 @@ export async function POST(request: NextRequest) {
 
 // Disable body parsing, we need the raw body for signature verification
 export const runtime = "nodejs";
-

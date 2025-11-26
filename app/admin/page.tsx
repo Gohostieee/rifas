@@ -52,9 +52,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-const ITEMS_PER_PAGE = 10;
+  const ITEMS_PER_PAGE = 10;
 
-const rifaFormSchema = z.object({
+  const formatBoletoNumber = (num: number) => {
+    return num.toString().padStart(4, '0');
+  };
+  
+  const rifaFormSchema = z.object({
   title: z.string().min(1, "Title is required"),
   subtitle: z.string().min(1, "Subtitle is required"),
   description: z.string().min(1, "Description is required"),
@@ -82,6 +86,9 @@ export default function AdminPage() {
   const [isAnimating, setIsAnimating] = useState(false);
   const [animationBoleto, setAnimationBoleto] = useState<{ _id: Id<"boletos">; number: number; name: string; email: string; phone: string; rifaTitle: string } | null>(null);
   const [allBoletosForAnimation, setAllBoletosForAnimation] = useState<Array<{ _id: Id<"boletos">; number: number; name: string; email: string; phone: string; rifaTitle: string }>>([]);
+  const [isWinnerSelectionDialogOpen, setIsWinnerSelectionDialogOpen] = useState(false);
+  const [selectedRifaForWinner, setSelectedRifaForWinner] = useState<Id<"daily_rifa"> | "">("");
+  const [winnerSelectionResult, setWinnerSelectionResult] = useState<{ _id: Id<"boletos">; number: number; name: string; email: string; phone: string; rifaTitle: string } | null>(null);
 
   // Check if already authenticated (stored in sessionStorage)
   useEffect(() => {
@@ -238,6 +245,42 @@ export default function AdminPage() {
       alert("Error picking winner. Please try again.");
       setIsAnimating(false);
       setAnimationBoleto(null);
+    }
+  };
+
+  const handleSpecificWinnerSelection = async () => {
+    if (!selectedRifaForWinner) {
+      alert("Please select a rifa");
+      return;
+    }
+
+    try {
+      const random = await getRandomBoleto({ rifaId: selectedRifaForWinner as Id<"daily_rifa"> });
+      if (random) {
+        setWinnerSelectionResult(random);
+      } else {
+        alert("No boletos found for this rifa");
+      }
+    } catch (error) {
+      console.error("Error getting random boleto:", error);
+      alert("Error getting random boleto. Please try again.");
+    }
+  };
+
+  const confirmWinnerSelection = async () => {
+    if (!winnerSelectionResult) return;
+
+    try {
+      await setBoletoWinner({ boletoId: winnerSelectionResult._id, isWinner: true });
+      setIsWinnerSelectionDialogOpen(false);
+      setWinnerSelectionResult(null);
+      setSelectedRifaForWinner("");
+      // Refresh data
+      setCurrentPage(1);
+      alert(`Winner confirmed: ${winnerSelectionResult.name} (${formatBoletoNumber(winnerSelectionResult.number)})`);
+    } catch (error) {
+      console.error("Error setting winner:", error);
+      alert("Error setting winner. Please try again.");
     }
   };
 
@@ -564,6 +607,13 @@ export default function AdminPage() {
                   </CardDescription>
                 </div>
                 <div className="flex items-center gap-4">
+                  <Button 
+                    onClick={() => setIsWinnerSelectionDialogOpen(true)}
+                    className="bg-purple-600 hover:bg-purple-700 text-white"
+                  >
+                    <Trophy className="h-4 w-4 mr-2" />
+                    Select Winner from Rifa
+                  </Button>
                   <div className="flex items-center gap-2">
                     <label htmlFor="rifa-filter" className="text-sm font-medium">
                       Filter by Rifa:
@@ -622,7 +672,7 @@ export default function AdminPage() {
                       </div>
                       <div className="grid grid-cols-2 gap-4 text-sm">
                         <div>
-                          <span className="font-medium">Number:</span> {randomBoleto.number}
+                          <span className="font-medium">Number:</span> {formatBoletoNumber(randomBoleto.number)}
                         </div>
                         <div>
                           <span className="font-medium">Name:</span> {randomBoleto.name}
@@ -683,7 +733,7 @@ export default function AdminPage() {
                         </div>
                         <div className="text-center space-y-4">
                           <div className="text-6xl font-black text-yellow-600 mb-4 transition-all duration-75">
-                            {animationBoleto.number}
+                            {formatBoletoNumber(animationBoleto.number)}
                           </div>
                           <div className="space-y-2">
                             <div className="text-xl font-semibold text-gray-800">
@@ -752,7 +802,7 @@ export default function AdminPage() {
                             )}
                           </TableCell>
                           <TableCell className="font-medium">
-                            {boleto.number}
+                            {formatBoletoNumber(boleto.number)}
                           </TableCell>
                           <TableCell>{boleto.rifaTitle}</TableCell>
                           <TableCell>{boleto.name}</TableCell>
@@ -843,6 +893,99 @@ export default function AdminPage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <Dialog open={isWinnerSelectionDialogOpen} onOpenChange={(open) => {
+        setIsWinnerSelectionDialogOpen(open);
+        if (!open) {
+          setWinnerSelectionResult(null);
+          setSelectedRifaForWinner("");
+        }
+      }}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Select Winner from Specific Rifa</DialogTitle>
+            <DialogDescription>
+              Choose a rifa to pick a random winner from its pool of sold tickets.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {!winnerSelectionResult ? (
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <label htmlFor="winner-rifa-select" className="text-sm font-medium">
+                  Select Rifa
+                </label>
+                <Select
+                  value={selectedRifaForWinner}
+                  onValueChange={(value) => setSelectedRifaForWinner(value as Id<"daily_rifa">)}
+                >
+                  <SelectTrigger id="winner-rifa-select">
+                    <SelectValue placeholder="Select a rifa..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {rifas?.map((rifa) => (
+                      <SelectItem key={rifa._id} value={rifa._id}>
+                        {rifa.title}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button 
+                onClick={handleSpecificWinnerSelection} 
+                className="w-full"
+                disabled={!selectedRifaForWinner}
+              >
+                <Shuffle className="mr-2 h-4 w-4" />
+                Pick Random Winner
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-6 py-4">
+              <div className="rounded-lg border-2 border-yellow-400 bg-yellow-50 p-6 text-center">
+                <Trophy className="mx-auto h-12 w-12 text-yellow-600 mb-2" />
+                <h3 className="text-xl font-bold text-yellow-800 mb-1">Winner Selected!</h3>
+                <p className="text-yellow-600 mb-4">Please confirm to set this ticket as the winner.</p>
+                
+                <div className="bg-white rounded-md p-4 shadow-sm border border-yellow-200 text-left text-gray-900">
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                    <div><span className="font-semibold">Number:</span></div>
+                    <div className="font-mono text-lg font-bold">{formatBoletoNumber(winnerSelectionResult.number)}</div>
+                    
+                    <div><span className="font-semibold">Name:</span></div>
+                    <div>{winnerSelectionResult.name}</div>
+                    
+                    <div><span className="font-semibold">Email:</span></div>
+                    <div className="truncate">{winnerSelectionResult.email}</div>
+                    
+                    <div><span className="font-semibold">Phone:</span></div>
+                    <div>{winnerSelectionResult.phone}</div>
+
+                    <div><span className="font-semibold">Rifa:</span></div>
+                    <div>{winnerSelectionResult.rifaTitle}</div>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex gap-3">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setWinnerSelectionResult(null)}
+                  className="flex-1"
+                >
+                  Try Again
+                </Button>
+                <Button 
+                  onClick={confirmWinnerSelection}
+                  className="flex-1 bg-green-600 hover:bg-green-700"
+                >
+                  Confirm Winner
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="sm:max-w-[600px]">

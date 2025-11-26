@@ -3,6 +3,8 @@
 ## Schema Overview
 - `boletos` - Stores ticket purchases with number, name, email, phone, rifa reference, and optional winner flag
   - Indexed by `rifa` field for efficient filtering (`by_rifa` index)
+  - Indexed by `rifa` and `number` for uniqueness checks (`by_rifa_number` index)
+  - `number` is generated dynamically (starting at 4 digits, increasing to 5+ as needed)
   - `winner` field defaults to `false`/`undefined` for new boletos
 - `daily_rifa` - Stores raffle/prize information with title, subtitle, description, image, and optional selected flag
 

@@ -7,7 +7,7 @@ export const createBoletosFromWebhook = internalAction({
   args: {
     rifaId: v.id("daily_rifa"),
     boletos: v.array(v.object({
-      number: v.number(),
+      number: v.optional(v.number()),
       name: v.string(),
       email: v.string(),
       phone: v.string(),
@@ -32,7 +32,7 @@ export const createBoletosFromWebhookPublic = action({
   args: {
     rifaId: v.id("daily_rifa"),
     boletos: v.array(v.object({
-      number: v.number(),
+      number: v.optional(v.number()),
       name: v.string(),
       email: v.string(),
       phone: v.string(),

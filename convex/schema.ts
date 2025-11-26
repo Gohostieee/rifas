@@ -3,15 +3,16 @@ import { v } from "convex/values";
 
 export default defineSchema({
   boletos: defineTable({
-    number: v.number(), // 10 digit positive int
+    number: v.number(), // Positive int (starts at 4 digits)
     name: v.string(),
     email: v.string(),
     phone: v.string(),
-    rifa: v.id("daily_rifa"),
+    rifa: v.optional(v.id("daily_rifa")),
     stripePaymentIntentId: v.optional(v.string()), // Store Stripe payment intent ID
     winner: v.optional(v.boolean()), // Marks if this ticket is the winner
   })
-    .index("by_rifa", ["rifa"]),
+    .index("by_rifa", ["rifa"])
+    .index("by_rifa_number", ["rifa", "number"]),
   daily_rifa: defineTable({
     title: v.string(),
     subtitle: v.string(),

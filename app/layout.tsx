@@ -15,8 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "JR Sorteos - Rifas Diarias",
-  description: "Gana premios increíbles todos los días con JR Sorteos",
+  title: "Sorteos Joropo - Rifas Diarias",
+  description: "Gana premios increíbles todos los días con Sorteos Joropo",
 };
 
 export default function RootLayout({

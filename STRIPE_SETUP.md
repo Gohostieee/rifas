@@ -49,8 +49,7 @@ NEXT_PUBLIC_CONVEX_URL=your_convex_url
 2. **Webhook Flow**:
    - Stripe sends `checkout.session.completed` event to webhook endpoint
    - Webhook verifies the Stripe signature cryptographically (using `STRIPE_WEBHOOK_SECRET`)
-   - Generates random 10-digit boleto numbers
-   - Calls Convex public action to create boletos
+   - Calls Convex public action to create boletos (number generation delegated to Convex)
    - Updates the rifa's `currentBoletosSold` count
    - User is redirected to success page
 
@@ -120,7 +119,7 @@ This error has been resolved. The webhook secret is now only required in Next.js
 
 ## Important Notes
 
-- Boleto numbers are randomly generated 10-digit numbers
+- Boleto numbers are dynamically generated (starting at 4 digits, increasing as needed)
 - Each boleto is linked to a rifa via the `rifa` field
 - The `currentBoletosSold` count is automatically updated when boletos are created
 - Payment intent ID is stored with each boleto for reference

@@ -7,10 +7,14 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 
 export async function POST(request: NextRequest) {
   try {
+    console.log("Stripe checkout request received");
     const body = await request.json();
+    console.log("Request body:", JSON.stringify(body, null, 2));
+    
     const { rifaId, ticketCount, name, email, phone, precio } = body;
 
     if (!rifaId || !ticketCount || !name || !email || !phone || !precio) {
+      console.error("Missing required fields in request:", { rifaId, ticketCount, name, email, phone, precio });
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }
@@ -38,8 +42,10 @@ export async function POST(request: NextRequest) {
     };
 
     const baseUrl = getBaseUrl();
+    console.log("Using base URL:", baseUrl);
 
     // Create Stripe Checkout Session
+    console.log("Creating Stripe checkout session...");
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
       line_items: [
@@ -70,6 +76,8 @@ export async function POST(request: NextRequest) {
         enabled: true,
       },
     });
+    
+    console.log("Stripe checkout session created:", session.id);
 
     return NextResponse.json({ 
       sessionId: session.id,
@@ -83,4 +91,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-
