@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
 import { Menu, X, Ticket, Trophy, Users, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -20,14 +19,8 @@ export function Header() {
       <div className="container mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         {/* Logo */}
         <div className="flex items-center gap-3">
-          <div className="relative h-12 w-12 overflow-hidden rounded-full border-2 border-primary-foreground/20 shadow-md">
-            <Image 
-              src="/logo.png" 
-              alt="Sorteos Joropo Logo" 
-              fill 
-              className="object-cover"
-              priority
-            />
+          <div className="flex h-12 w-12 items-center justify-center rounded-full border-2 border-primary-foreground/20 bg-primary-foreground/10 shadow-md">
+            <Ticket className="h-6 w-6 text-primary-foreground" />
           </div>
           <div className="text-xl font-black tracking-tight text-primary-foreground sm:text-2xl">
             <span className="text-2xl sm:text-3xl">Sorteos Joropo</span>
