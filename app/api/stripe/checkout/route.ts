@@ -46,6 +46,12 @@ export async function POST(request: NextRequest) {
 
     // Create Stripe Checkout Session
     console.log("Creating Stripe checkout session...");
+    
+    // Calculate fee (5%)
+    const subtotal = precio * ticketCount;
+    const feeAmount = subtotal * 0.05;
+    const feeInCents = Math.round(feeAmount * 100);
+    
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
       line_items: [
@@ -59,6 +65,17 @@ export async function POST(request: NextRequest) {
             unit_amount: Math.round(precio * 100), // Convert to cents
           },
           quantity: ticketCount,
+        },
+        {
+          price_data: {
+            currency: "dop",
+            product_data: {
+              name: "Comisión de Servicio",
+              description: "5% cargo por servicio",
+            },
+            unit_amount: feeInCents,
+          },
+          quantity: 1,
         },
       ],
       mode: "payment",

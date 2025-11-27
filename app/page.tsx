@@ -546,13 +546,25 @@ export default function Home() {
                     </Button>
                   </div>
 
-                  {/* Total Price */}
-                  <div className="mb-8 text-center">
-                    <p className="mb-2 text-sm uppercase tracking-wide text-muted-foreground">
-                      Total a Pagar
-                    </p>
-                    <div className="text-5xl font-black">
-                      RD${(ticketCount * (rifa.precio ?? 0)).toFixed(2)}
+                  {/* Price Breakdown */}
+                  <div className="mb-8 space-y-2">
+                    <div className="flex items-center justify-between text-sm text-muted-foreground">
+                      <span>Subtotal ({ticketCount} {ticketCount === 1 ? "boleto" : "boletos"})</span>
+                      <span>RD${(ticketCount * (rifa.precio ?? 0)).toFixed(2)}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm text-muted-foreground">
+                      <span>Comisión de servicio (5%)</span>
+                      <span>RD${((ticketCount * (rifa.precio ?? 0)) * 0.05).toFixed(2)}</span>
+                    </div>
+                    <div className="border-t pt-2 mt-2">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm uppercase tracking-wide text-muted-foreground">
+                          Total a Pagar
+                        </p>
+                        <div className="text-4xl font-black text-primary">
+                          RD${((ticketCount * (rifa.precio ?? 0)) * 1.05).toFixed(2)}
+                        </div>
+                      </div>
                     </div>
                   </div>
 
