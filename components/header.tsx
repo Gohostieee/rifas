@@ -1,11 +1,17 @@
 "use client";
 
 import { useState } from "react";
+import { usePathname } from "next/navigation";
 import { Menu, X, Ticket, Trophy, Users, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const pathname = usePathname();
+
+  if (pathname?.startsWith("/admin")) {
+    return null;
+  }
 
   const navigation = [
     { name: "Inicio", href: "#", icon: Ticket },
@@ -13,6 +19,21 @@ export function Header() {
     { name: "Ganadores", href: "#winners", icon: Users },
     { name: "Contacto", href: "#contact", icon: Mail },
   ];
+
+  const handleScroll = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
+    e.preventDefault();
+    setMobileMenuOpen(false);
+    
+    if (href === "#") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
+
+    const element = document.querySelector(href);
+    if (element) {
+      element.scrollIntoView({ behavior: "smooth" });
+    }
+  };
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-gradient-to-r from-primary via-primary to-primary/90 shadow-lg backdrop-blur supports-[backdrop-filter]:bg-primary/95">
@@ -36,7 +57,10 @@ export function Header() {
               className="text-primary-foreground/90 hover:bg-primary-foreground/10 hover:text-primary-foreground"
               asChild
             >
-              <a href={item.href}>
+              <a 
+                href={item.href}
+                onClick={(e) => handleScroll(e, item.href)}
+              >
                 <item.icon className="mr-2 h-4 w-4" />
                 {item.name}
               </a>
@@ -69,9 +93,11 @@ export function Header() {
                 variant="ghost"
                 className="justify-start text-primary-foreground/90 hover:bg-primary-foreground/10 hover:text-primary-foreground"
                 asChild
-                onClick={() => setMobileMenuOpen(false)}
               >
-                <a href={item.href}>
+                <a 
+                  href={item.href}
+                  onClick={(e) => handleScroll(e, item.href)}
+                >
                   <item.icon className="mr-2 h-4 w-4" />
                   {item.name}
                 </a>

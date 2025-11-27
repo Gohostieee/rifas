@@ -159,7 +159,7 @@ export default function Home() {
       ) : (
         <>
           {/* Hero Section */}
-          <section className="relative min-h-[700px] w-full overflow-hidden bg-gradient-to-b from-muted to-background">
+          <section id="current-raffle" className="relative min-h-[700px] w-full overflow-hidden bg-gradient-to-b from-muted to-background">
             {/* Background Image with Overlay */}
             <div className="absolute inset-0">
               {rifa.image && (
