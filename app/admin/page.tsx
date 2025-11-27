@@ -640,22 +640,7 @@ export default function AdminPage() {
                   </div>
                   {selectedRifaFilter !== "all" && (
                     <div className="flex gap-2">
-                      <Button
-                        onClick={handleRollRandom}
-                        variant="outline"
-                        className="gap-2"
-                      >
-                        <Shuffle className="h-4 w-4" />
-                        Roll Random Ticket
-                      </Button>
-                      <Button
-                        onClick={handleAnimatedWinnerSelection}
-                        disabled={isAnimating}
-                        className="gap-2 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white font-bold shadow-lg"
-                      >
-                        <Sparkles className="h-4 w-4" />
-                        {isAnimating ? "Picking Winner..." : "Pick Winner (Animated)"}
-                      </Button>
+                      {/* Removed Roll Random Ticket and Pick Winner (Animated) buttons */}
                     </div>
                   )}
                 </div>
